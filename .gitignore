@@ -45,3 +45,6 @@ app.*.map.json
 
 # Environment variables
 .env
+
+# Supabase 및 기타 API 키 포함 파일
+lib/core/supabase_config.dart
