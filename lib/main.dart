@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'core/supabase_config.dart';
-import 'screens/profile_screen.dart';
+import 'screens/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,12 +29,22 @@ class SoloTutorApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.deepPurple,
-        scaffoldBackgroundColor: Colors.grey[50],
+        scaffoldBackgroundColor: const Color(0xFFFAF7F2),
         appBarTheme: const AppBarTheme(
           elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: Color(0xFF3E3E3E),
+          surfaceTintColor: Colors.transparent,
+        ),
+        textTheme: GoogleFonts.notoSansKrTextTheme(
+          Theme.of(context).textTheme,
+        ),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF7E57C2),
+          surface: const Color(0xFFFAF7F2),
         ),
       ),
-      home: const ProfileScreen(),
+      home: const HomeScreen(),
     );
   }
 }

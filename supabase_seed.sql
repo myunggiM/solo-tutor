@@ -11,3 +11,13 @@ VALUES (
 ON CONFLICT (id) DO UPDATE
 SET nickname = EXCLUDED.nickname,
     total_points = EXCLUDED.total_points;
+
+-- posts 테이블 생성 (게시글)
+CREATE TABLE IF NOT EXISTS posts (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id     UUID REFERENCES auth.users(id),
+  category    TEXT NOT NULL,          -- 소분류 명칭
+  image_url   TEXT NOT NULL,          -- Storage public URL
+  content     TEXT,                   -- 선택적 텍스트
+  created_at  TIMESTAMPTZ DEFAULT now()
+);

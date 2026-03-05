@@ -1,0 +1,4415 @@
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\main.dart
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/supabase_config.dart';
+import 'screens/profile_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/create_post_page.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Supabase Ï¥àÍ∏∞??
+  await Supabase.initialize(
+    url: SupabaseConfig.supabaseUrl,
+    anonKey: SupabaseConfig.supabaseAnonKey,
+  );
+
+  runApp(const SoloTutorApp());
+}
+
+/// Supabase ?¥Îùº?¥Ïñ∏?∏Ïóê ?ΩÍ≤å ?ëÍ∑º?òÍ∏∞ ?ÑÌïú Í∏ÄÎ°úÎ≤å getter
+final supabase = Supabase.instance.client;
+
+class SoloTutorApp extends StatelessWidget {
+  const SoloTutorApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Solo Tutor',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.deepPurple,
+        scaffoldBackgroundColor: Colors.grey[50],
+        appBarTheme: const AppBarTheme(
+          elevation: 0,
+        ),
+      ),
+      home: HomeScreen(),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\core\supabase_config.dart
+/// Supabase ?§Ï†ï ?ÅÏàò
+class SupabaseConfig {
+  static const String supabaseUrl = 'https://mlhqhjfsllfthtztzxjc.supabase.co';
+  static const String supabaseAnonKey =
+      'sb_publishable_ruKNwLtzzjOvyPOpC6ZwbQ_h96hpf7q';
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\create_post_page.dart
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+/// Í≤åÏãúÍ∏Ä ?ëÏÑ± ?òÏù¥ÏßÄ (CreatePostPage)
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+class CreatePostPage extends StatefulWidget {
+  const CreatePostPage({super.key});
+
+  @override
+  State<CreatePostPage> createState() => _CreatePostPageState();
+}
+
+class _CreatePostPageState extends State<CreatePostPage> {
+  // ?Ä?Ä Supabase ?¥Îùº?¥Ïñ∏???Ä?Ä
+  final _supabase = Supabase.instance.client;
+
+  // ?Ä?Ä Ïπ¥ÌÖåÍ≥†Î¶¨ Îß? ?ÄÎ∂ÑÎ•ò ???åÎ∂ÑÎ•??Ä?Ä
+  static const _categoryMap = <String, List<String>>{
+    '?¥Î©¥(Inner)': ['Ïπ¥ÌÜ° ?©Ìè≠', 'MBTI', '?¨Ï£º/?ÄÎ°?],
+    '?∏Î©¥(Outer)': ['?®ÏÖò Í≥†Ïûê ?àÏ∂ú', 'Ï≤´Ïù∏???§Ï∫î', 'Îß§ÎÑà/?úÎèÑ'],
+  };
+
+  // ?Ä?Ä ?ÅÌÉú ?Ä?Ä
+  String? _selectedMain; // ?ÄÎ∂ÑÎ•ò
+  String? _selectedSub; // ?åÎ∂ÑÎ•?
+  XFile? _pickedImage; // ?†ÌÉù???¨ÏßÑ
+  final _contentController = TextEditingController();
+  bool _isLoading = false;
+
+  // ?Ä?Ä ?¨ÏßÑ ?†ÌÉù ?Ä?Ä
+  Future<void> _pickImage() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      imageQuality: 80,
+    );
+    if (picked != null) {
+      setState(() => _pickedImage = picked);
+    }
+  }
+
+  // ?Ä?Ä ?†Ìö®??Í≤Ä???Ä?Ä
+  bool _validate() {
+    if (_selectedSub == null || _pickedImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('??™©??Ï±ÑÏõåÏ£ºÏÑ∏??(Ïπ¥ÌÖåÍ≥†Î¶¨ ?†ÌÉù + ?¨ÏßÑ Ï≤®Î? ?ÑÏàò)'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  // ?Ä?Ä Í≤åÏãúÍ∏Ä ?±Î°ù ?Ä?Ä
+  Future<void> _submit() async {
+    if (!_validate()) return;
+    setState(() => _isLoading = true);
+
+   try {
+      // 1) ?åÏùºÎ™??ùÏÑ± (Platform.pathSeparator ?Ä??'/' ?¨Ïö© ?êÎäî ?®Ïàú??
+      // ??Î™®Î∞î??Í≥µÏö©?ºÎ°ú Í∞Ä???àÏ†Ñ??Î∞©Î≤ï?Ä ?ÑÎûò?Ä Í∞ôÏäµ?àÎã§.
+     
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${_pickedImage!.name}';
+      final bytes = await _pickedImage!.readAsBytes();
+
+      // 2) 'supabase' ?Ä???ÑÎûò?Ä Í∞ôÏù¥ ÏßÅÏ†ë ?∏Ï∂ú?òÏÑ∏??
+      await Supabase.instance.client.storage.from('posts').uploadBinary(
+        fileName,
+        bytes,
+        fileOptions: const FileOptions(contentType: 'image/jpeg'),
+      );
+
+      // 2) Public URL Í∞Ä?∏Ïò§Í∏?
+      final imageUrl =
+          _supabase.storage.from('posts').getPublicUrl(fileName);
+
+      // 3) posts ?åÏù¥Î∏?insert
+      await _supabase.from('posts').insert({
+        'category': _selectedSub,
+        'image_url': imageUrl,
+        'content': _contentController.text.trim().isEmpty
+            ? null
+            : _contentController.text.trim(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Í≤åÏãúÍ∏Ä???±Î°ù?òÏóà?µÎãà?? ?éâ'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).pop(); // ?¥Ï†Ñ ?îÎ©¥?ºÎ°ú
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('?§Î•ò Î∞úÏÉù: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä BUILD ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+  @override
+  Widget build(BuildContext context) {
+    final subCategories = _selectedMain != null
+        ? _categoryMap[_selectedMain]!
+        : <String>[];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Í≤åÏãúÍ∏Ä ?ëÏÑ±'),
+        centerTitle: true,
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+      ),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ?Ä?Ä 1. ?ÄÎ∂ÑÎ•ò ?†ÌÉù Ïπ¥Îìú ?Ä?Ä
+              _SectionCard(
+                title: '?ÄÎ∂ÑÎ•ò ?†ÌÉù',
+                child: Wrap(
+                  spacing: 12,
+                  children: _categoryMap.keys.map((main) {
+                    final selected = _selectedMain == main;
+                    return ChoiceChip(
+                      label: Text(main),
+                      selected: selected,
+                      selectedColor: Colors.deepPurple,
+                      labelStyle: TextStyle(
+                        color: selected ? Colors.white : Colors.black87,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      onSelected: (_) {
+                        setState(() {
+                          _selectedMain = main;
+                          _selectedSub = null; // ?åÎ∂ÑÎ•?Ï¥àÍ∏∞??
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+
+              // ?Ä?Ä 2. ?åÎ∂ÑÎ•??†ÌÉù Ïπ¥Îìú (?ÄÎ∂ÑÎ•ò ?†ÌÉù ???∏Ï∂ú) ?Ä?Ä
+              if (subCategories.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _SectionCard(
+                  title: '?åÎ∂ÑÎ•??†ÌÉù',
+                  child: Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
+                    children: subCategories.map((sub) {
+                      final selected = _selectedSub == sub;
+                      return ChoiceChip(
+                        label: Text(sub),
+                        selected: selected,
+                        selectedColor: Colors.deepPurple.shade300,
+                        labelStyle: TextStyle(
+                          color: selected ? Colors.white : Colors.black87,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        onSelected: (_) {
+                          setState(() => _selectedSub = sub);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+
+              // ?Ä?Ä 3. ?¨ÏßÑ Ï≤®Î? Ïπ¥Îìú ?Ä?Ä
+              _SectionCard(
+                title: '?¨ÏßÑ Ï≤®Î? (?ÑÏàò)',
+                child: Column(
+                  children: [
+                    // ÎØ∏Î¶¨Î≥¥Í∏∞
+                    if (_pickedImage != null)
+                      AspectRatio(
+                        aspectRatio: 16 / 9, // ?êÌïò??ÎπÑÏú®Î°?Í≥†Ï†ï (?? 16:9)
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            _pickedImage!.path,
+                            fit: BoxFit.contain, // ?àÎ? ???òÎ¶º
+                          ),
+                        ),
+                      ),
+                    if (_pickedImage != null) const SizedBox(height: 12),
+
+                    // ?¨ÏßÑ ?†ÌÉù Î≤ÑÌäº
+                    OutlinedButton.icon(
+                      onPressed: _pickImage,
+                      icon: const Icon(Icons.photo_library_outlined),
+                      label: Text(
+                        _pickedImage == null ? 'Í∞§Îü¨Î¶¨Ïóê???†ÌÉù' : '?¨ÏßÑ Î≥ÄÍ≤?,
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.deepPurple,
+                        side: const BorderSide(color: Colors.deepPurple),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 24,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ?Ä?Ä 4. ?¥Ïö© ?ÖÎ†• (?†ÌÉù) ?Ä?Ä
+              _SectionCard(
+                title: '?úÎßà??(?†ÌÉù)',
+                child: TextField(
+                  controller: _contentController,
+                  maxLines: 3,
+                  maxLength: 200,
+                  decoration: InputDecoration(
+                    hintText: '?òÍ≥† ?∂Ï? ÎßêÏù¥ ?àÎã§Î©??ÅÏñ¥Ï£ºÏÑ∏??..',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.deepPurple,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              // ?Ä?Ä 5. ?±Î°ù Î≤ÑÌäº ?Ä?Ä
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('?±Î°ù?òÍ∏∞'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _contentController.dispose();
+    super.dispose();
+  }
+}
+
+// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+// ?¨ÏÇ¨???πÏÖò Ïπ¥Îìú ?ÑÏ†Ø
+// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Colors.deepPurple,
+              ),
+            ),
+            const SizedBox(height: 14),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\home_screen.dart
+import 'package:flutter/material.dart';
+import 'tabs/coordi_tab.dart';
+import 'tabs/appearance_tab.dart';
+import 'tabs/makeup_tab.dart';
+
+/// ??Î∞îÍ? ?àÎäî Í∏∞Î≥∏ ???îÎ©¥
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  final List<Tab> _tabs = const [
+    Tab(icon: Icon(Icons.checkroom), text: 'ÏΩîÎîî'),
+    Tab(icon: Icon(Icons.face), text: '?∏Î™®'),
+    Tab(icon: Icon(Icons.brush), text: '?îÏû•'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: _tabs.length, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Solo Tutor'),
+        centerTitle: true,
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: _tabs,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: const [
+          CoordiTab(),
+          AppearanceTab(),
+          MakeupTab(),
+        ],
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\profile_screen.dart
+import 'package:flutter/material.dart';
+import '../services/profile_service.dart';
+
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final ProfileService _profileService = ProfileService();
+  LeaderboardProfile? _profile;
+  bool _isLoading = true;
+  String? _error;
+  int _selectedIndex = 0; // ?ÑÏû¨ ?†ÌÉù???åÏä§???†Ï? ?∏Îç±??
+
+  static const List<String> _tierLabels = [
+    'F', 'E', 'D', 'C', 'B', 'A', 'GOD'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final profile = await _profileService.getMyProfile(
+        userId: testUserIds[_selectedIndex],
+      );
+      setState(() {
+        _profile = profile;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _selectUser(int index) {
+    if (index == _selectedIndex) return;
+    setState(() => _selectedIndex = index);
+    _loadProfile();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF1A1A2E),
+      appBar: AppBar(
+        title: const Text('???ÑÎ°ú??),
+        centerTitle: true,
+        backgroundColor: const Color(0xFF16213E),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          // ?Ä?Ä ?±Í∏â ?†ÌÉù Î∞?(?åÏä§?∏Ïö©) ?Ä?Ä
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            color: const Color(0xFF16213E),
+            child: Column(
+              children: [
+                Text(
+                  '?ß™ ?±Í∏âÎ≥??åÏä§??,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[500],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(_tierLabels.length, (index) {
+                    final isSelected = index == _selectedIndex;
+                    return GestureDetector(
+                      onTap: () => _selectUser(index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: isSelected
+                              ? Colors.deepPurpleAccent
+                              : Colors.white.withOpacity(0.05),
+                          border: Border.all(
+                            color: isSelected
+                                ? Colors.deepPurpleAccent
+                                : Colors.white.withOpacity(0.1),
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.deepPurpleAccent
+                                        .withOpacity(0.4),
+                                    blurRadius: 8,
+                                  )
+                                ]
+                              : null,
+                        ),
+                        child: Text(
+                          _tierLabels[index],
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight:
+                                isSelected ? FontWeight.bold : FontWeight.w500,
+                            color:
+                                isSelected ? Colors.white : Colors.grey[400],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ),
+          ),
+
+          // ?Ä?Ä Î≥∏Î¨∏ ?Ä?Ä
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                        color: Colors.deepPurpleAccent))
+                : _error != null
+                    ? _buildError()
+                    : _profile != null
+                        ? _buildProfileCard()
+                        : _buildEmpty(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.redAccent),
+            const SizedBox(height: 16),
+            Text(
+              '?∞Ïù¥?∞Î? Î∂àÎü¨?????ÜÏäµ?àÎã§',
+              style: TextStyle(fontSize: 18, color: Colors.grey[300]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadProfile,
+              icon: const Icon(Icons.refresh),
+              label: const Text('?§Ïãú ?úÎèÑ'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurpleAccent,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.person_off, size: 64, color: Colors.grey[600]),
+          const SizedBox(height: 16),
+          Text(
+            '?ÑÎ°ú?ÑÏùÑ Ï∞æÏùÑ ???ÜÏäµ?àÎã§',
+            style: TextStyle(fontSize: 18, color: Colors.grey[400]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileCard() {
+    final profile = _profile!;
+
+    // ÏßÑÌñâÎ•?Í≥ÑÏÇ∞: next_tier_remaining??null?¥Î©¥ ÏµúÍ≥† ?±Í∏â
+    final bool isMaxTier = profile.nextTierRemaining == null;
+    final double progressValue = isMaxTier
+        ? 1.0
+        : profile.nextTierRemaining! > 0
+            ? profile.totalPoints /
+                (profile.totalPoints + profile.nextTierRemaining!)
+            : 1.0;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+
+          // ?Ä?Ä ?ÑÎ°ú???ÑÎ∞î?Ä ?Ä?Ä
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6C63FF), Color(0xFFE040FB)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF6C63FF).withOpacity(0.4),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Icon(Icons.person, size: 48, color: Colors.white),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ?Ä?Ä ?±Í∏â + ?âÎÑ§??(?¨Í≤å Í∞ïÏ°∞) ?Ä?Ä
+          Text(
+            profile.tierDisplay,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: Colors.amberAccent,
+              letterSpacing: 1.2,
+              shadows: [
+                Shadow(
+                  color: Colors.amberAccent,
+                  blurRadius: 12,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            profile.nickname,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          // ?Ä?Ä ?ÑÎ°ú??Ïπ¥Îìú ?Ä?Ä
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1E1E3F), Color(0xFF2A2A5A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(
+                color: Colors.deepPurpleAccent.withOpacity(0.3),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // ?¨Ïù∏???πÏÖò
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.star, color: Colors.amberAccent, size: 28),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${profile.totalPoints}',
+                      style: const TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'pts',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey[400],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // ?§Ïùå ?±Í∏â ÏßÑÌñâ??
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withOpacity(0.05),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            isMaxTier ? '?èÜ ÏµúÍ≥† ?±Í∏â ?¨ÏÑ±!' : '?§Ïùå ?±Í∏âÍπåÏ?',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[400],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (!isMaxTier)
+                            Text(
+                              '${profile.nextTierRemaining}pts ?®Ïùå',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.amberAccent,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: progressValue,
+                          minHeight: 12,
+                          backgroundColor: Colors.grey[800],
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            isMaxTier
+                                ? Colors.amberAccent
+                                : Colors.deepPurpleAccent,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${(progressValue * 100).toInt()}%',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\tabs\appearance_tab.dart
+import 'package:flutter/material.dart';
+
+class AppearanceTab extends StatelessWidget {
+  const AppearanceTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.face, size: 64, color: Colors.deepPurple),
+          SizedBox(height: 16),
+          Text(
+            '?∏Î™®',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text(
+            '?∏Î™® Í¥ÄÎ¶??ÅÏùÑ ?ïÏù∏?òÏÑ∏??,
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\tabs\coordi_tab.dart
+import 'package:flutter/material.dart';
+
+class CoordiTab extends StatelessWidget {
+  const CoordiTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.checkroom, size: 64, color: Colors.deepPurple),
+          SizedBox(height: 16),
+          Text(
+            'ÏΩîÎîî',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text(
+            '?òÎßå??ÏΩîÎîîÎ•?ÎßåÎì§?¥Î≥¥?∏Ïöî',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\tabs\makeup_tab.dart
+import 'package:flutter/material.dart';
+
+class MakeupTab extends StatelessWidget {
+  const MakeupTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.brush, size: 64, color: Colors.deepPurple),
+          SizedBox(height: 16),
+          Text(
+            '?îÏû•',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text(
+            '?îÏû•Î≤ïÏùÑ Î∞∞ÏõåÎ≥¥ÏÑ∏??,
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\services\auth_service.dart
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Supabase ?∏Ï¶ù ?úÎπÑ??
+class AuthService {
+  final SupabaseClient _client = Supabase.instance.client;
+
+  /// ?ÑÏû¨ Î°úÍ∑∏?∏Îêú ?¨Ïö©??
+  User? get currentUser => _client.auth.currentUser;
+
+  /// ?∏Ï¶ù ?ÅÌÉú Î≥ÄÍ≤??§Ìä∏Î¶?
+  Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
+
+  /// ?¥Î©î???®Ïä§?åÎìú ?åÏõêÍ∞Ä??
+  Future<AuthResponse> signUp({
+    required String email,
+    required String password,
+  }) async {
+    return await _client.auth.signUp(
+      email: email,
+      password: password,
+    );
+  }
+
+  /// ?¥Î©î???®Ïä§?åÎìú Î°úÍ∑∏??
+  Future<AuthResponse> signIn({
+    required String email,
+    required String password,
+  }) async {
+    return await _client.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
+  }
+
+  /// Î°úÍ∑∏?ÑÏõÉ
+  Future<void> signOut() async {
+    await _client.auth.signOut();
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\services\profile_service.dart
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// ?åÏä§?∏Ïö© ?¨Ïö©??ID Î™©Î°ù (F~GOD ?±Í∏âÎ≥?
+const List<String> testUserIds = [
+  '00000000-0000-0000-0000-000000000000', // F?±Í∏â
+  '11111111-1111-1111-1111-111111111111', // E?±Í∏â
+  '22222222-2222-2222-2222-222222222222', // D?±Í∏â
+  '33333333-3333-3333-3333-333333333333', // C?±Í∏â
+  '44444444-4444-4444-4444-444444444444', // B?±Í∏â
+  '55555555-5555-5555-5555-555555555555', // A?±Í∏â
+  '66666666-6666-6666-6666-666666666666', // GOD?±Í∏â
+];
+const String testUserId = '00000000-0000-0000-0000-000000000000';
+
+/// Î¶¨ÎçîÎ≥¥Îìú ?∞Ïù¥??Î™®Îç∏
+class LeaderboardProfile {
+  final String id;
+  final String nickname;
+  final int totalPoints;
+  final String tierDisplay;
+  final int? nextTierRemaining;
+
+  LeaderboardProfile({
+    required this.id,
+    required this.nickname,
+    required this.totalPoints,
+    required this.tierDisplay,
+    this.nextTierRemaining,
+  });
+
+  factory LeaderboardProfile.fromMap(Map<String, dynamic> map) {
+    return LeaderboardProfile(
+      id: map['id'] as String,
+      nickname: map['nickname'] as String,
+      totalPoints: (map['total_points'] as num).toInt(),
+      tierDisplay: map['tier_display'] as String? ?? '',
+      nextTierRemaining: map['next_tier_remaining'] != null
+          ? (map['next_tier_remaining'] as num).toInt()
+          : null,
+    );
+  }
+}
+
+/// ?ÑÎ°ú??Î¶¨ÎçîÎ≥¥Îìú ?úÎπÑ??
+class ProfileService {
+  final SupabaseClient _client = Supabase.instance.client;
+
+  /// leaderboards Î∑∞Ïóê???πÏ†ï ?¨Ïö©???ïÎ≥¥Î•?Í∞Ä?∏Ïò¥
+  Future<LeaderboardProfile?> getMyProfile({String? userId}) async {
+    final uid = userId ?? testUserId;
+
+    final response = await _client
+        .from('leaderboards')
+        .select()
+        .eq('id', uid)
+        .maybeSingle();
+
+    if (response == null) return null;
+    return LeaderboardProfile.fromMap(response);
+  }
+
+  /// leaderboards Î∑∞Ïóê???ÑÏ≤¥ ?úÏúÑÎ•?Í∞Ä?∏Ïò¥
+  Future<List<LeaderboardProfile>> getLeaderboard({int limit = 20}) async {
+    final response = await _client
+        .from('leaderboards')
+        .select()
+        .order('total_points', ascending: false)
+        .limit(limit);
+
+    return (response as List)
+        .map((e) => LeaderboardProfile.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\main.dart
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'core/supabase_config.dart';
+import 'screens/profile_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/create_post_page.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Supabase Ï¥àÍ∏∞??
+  await Supabase.initialize(
+    url: SupabaseConfig.supabaseUrl,
+    anonKey: SupabaseConfig.supabaseAnonKey,
+  );
+
+  runApp(const SoloTutorApp());
+}
+
+/// Supabase ?¥Îùº?¥Ïñ∏?∏Ïóê ?ΩÍ≤å ?ëÍ∑º?òÍ∏∞ ?ÑÌïú Í∏ÄÎ°úÎ≤å getter
+final supabase = Supabase.instance.client;
+
+class SoloTutorApp extends StatelessWidget {
+  const SoloTutorApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Solo Tutor',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.deepPurple,
+        scaffoldBackgroundColor: const Color(0xFFFAF7F2),
+        appBarTheme: const AppBarTheme(
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: Color(0xFF3E3E3E),
+          surfaceTintColor: Colors.transparent,
+        ),
+        textTheme: GoogleFonts.notoSansKrTextTheme(
+          Theme.of(context).textTheme,
+        ),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF7E57C2),
+          surface: const Color(0xFFFAF7F2),
+        ),
+      ),
+      home: const HomeScreen(),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\core\category_data.dart
+import 'package:flutter/material.dart';
+
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+/// Ïπ¥ÌÖåÍ≥†Î¶¨ ?∞Ïù¥??Î™®Îç∏ (Inner / Outer)
+/// CreatePostPage?Ä HomeScreen?êÏÑú Í≥µÏú†
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+
+class SubCategoryInfo {
+  final String name;
+  final String emoji;
+  final String tagline;
+  final List<Color> gradientColors;
+  final IconData icon;
+
+  const SubCategoryInfo({
+    required this.name,
+    required this.emoji,
+    required this.tagline,
+    required this.gradientColors,
+    required this.icon,
+  });
+}
+
+class CategoryData {
+  CategoryData._();
+
+  /// CreatePostPage?Ä ?ôÏùº??Ïπ¥ÌÖåÍ≥†Î¶¨ Îß?
+  static const categoryMap = <String, List<String>>{
+    '?¥Î©¥(Inner)': ['Ïπ¥ÌÜ° ?©Ìè≠', 'MBTI', '?¨Ï£º/?ÄÎ°?],
+    '?∏Î©¥(Outer)': ['?®ÏÖò Í≥†Ïûê ?àÏ∂ú', 'Ï≤´Ïù∏???§Ï∫î', 'Îß§ÎÑà/?úÎèÑ'],
+  };
+
+  /// ?ÄÎ∂ÑÎ•ò ??Î™©Î°ù
+  static const mainCategories = ['?¥Î©¥(Inner)', '?∏Î©¥(Outer)'];
+
+  /// ?ÄÎ∂ÑÎ•òÎ≥?Í∞êÏÑ± ?ºÎ≤®
+  static const sectionLabels = <String, String>{
+    '?¥Î©¥(Inner)': 'ÎßàÏùå ???òÎ? ?§Ïó¨?§Î≥ºÍπ?',
+    '?∏Î©¥(Outer)': '?∏ÏÉÅ??Î≥¥Ïó¨Ï§??? ?§Îì¨?¥Î≥ºÍπ?',
+  };
+
+  /// ?åÎ∂ÑÎ•òÎ≥Ñ ?ÅÏÑ∏ ?ïÎ≥¥ (Í∞êÏÑ± Î¨∏Íµ¨ + Í∑∏Îùº?îÏñ∏??+ ?ÑÏù¥ÏΩ?
+  static const subCategoryDetails = <String, SubCategoryInfo>{
+    // ?Ä?Ä Inner ?Ä?Ä
+    'Ïπ¥ÌÜ° ?©Ìè≠': SubCategoryInfo(
+      name: 'Ïπ¥ÌÜ° ?©Ìè≠',
+      emoji: '?í¨',
+      tagline: 'ÏßÑÏßú ??ÎßêÌà¨,\n?åÏïÑÎ≥ºÍπå?',
+      gradientColors: [Color(0xFFB39DDB), Color(0xFF7E57C2)],
+      icon: Icons.chat_bubble_outline_rounded,
+    ),
+    'MBTI': SubCategoryInfo(
+      name: 'MBTI',
+      emoji: '?ß©',
+      tagline: '?òÎèÑ Î™∞Îûê??n??ÎßàÏùå ??,
+      gradientColors: [Color(0xFF90CAF9), Color(0xFF5C6BC0)],
+      icon: Icons.psychology_outlined,
+    ),
+    '?¨Ï£º/?ÄÎ°?: SubCategoryInfo(
+      name: '?¨Ï£º/?ÄÎ°?,
+      emoji: '?îÆ',
+      tagline: '?§Îäò???¥ÏÑ∏,\n?úÎ≤à Î≥ºÍπå?',
+      gradientColors: [Color(0xFFCE93D8), Color(0xFF8E24AA)],
+      icon: Icons.auto_awesome_outlined,
+    ),
+
+    // ?Ä?Ä Outer ?Ä?Ä
+    '?®ÏÖò Í≥†Ïûê ?àÏ∂ú': SubCategoryInfo(
+      name: '?®ÏÖò Í≥†Ïûê ?àÏ∂ú',
+      emoji: '?ëï',
+      tagline: '?òÎßå???§Ì???\nÏ∞æÏïÑÎ≥ºÍπå?',
+      gradientColors: [Color(0xFFFFCC80), Color(0xFFFF7043)],
+      icon: Icons.checkroom_outlined,
+    ),
+    'Ï≤´Ïù∏???§Ï∫î': SubCategoryInfo(
+      name: 'Ï≤´Ïù∏???§Ï∫î',
+      emoji: '??',
+      tagline: '?¨Îûå???àÏóê\n?òÎäî ?¥Îïå?',
+      gradientColors: [Color(0xFFF48FB1), Color(0xFFE91E63)],
+      icon: Icons.face_retouching_natural_outlined,
+    ),
+    'Îß§ÎÑà/?úÎèÑ': SubCategoryInfo(
+      name: 'Îß§ÎÑà/?úÎèÑ',
+      emoji: '?§ù',
+      tagline: '?∞Îúª???¨Îûå??n?òÏñ¥Î≥ºÍπå?',
+      gradientColors: [Color(0xFFA5D6A7), Color(0xFF43A047)],
+      icon: Icons.emoji_people_outlined,
+    ),
+  };
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\core\supabase_config.dart
+/// Supabase ?§Ï†ï ?ÅÏàò
+class SupabaseConfig {
+  static const String supabaseUrl = 'https://mlhqhjfsllfthtztzxjc.supabase.co';
+  static const String supabaseAnonKey =
+      'sb_publishable_ruKNwLtzzjOvyPOpC6ZwbQ_h96hpf7q';
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\create_post_page.dart
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/category_data.dart';
+
+
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+/// Í≤åÏãúÍ∏Ä ?ëÏÑ± ?òÏù¥ÏßÄ (CreatePostPage)
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+class CreatePostPage extends StatefulWidget {
+  const CreatePostPage({super.key});
+
+  @override
+  State<CreatePostPage> createState() => _CreatePostPageState();
+}
+
+class _CreatePostPageState extends State<CreatePostPage> {
+  // ?Ä?Ä Supabase ?¥Îùº?¥Ïñ∏???Ä?Ä
+  final _supabase = Supabase.instance.client;
+
+  // ?Ä?Ä Ïπ¥ÌÖåÍ≥†Î¶¨ Îß? Í≥µÏú† ?∞Ïù¥???¨Ïö© ?Ä?Ä
+  static const _categoryMap = CategoryData.categoryMap;
+
+  // ?Ä?Ä ?ÅÌÉú ?Ä?Ä
+  String? _selectedMain; // ?ÄÎ∂ÑÎ•ò
+  String? _selectedSub; // ?åÎ∂ÑÎ•?
+  XFile? _pickedImage; // ?†ÌÉù???¨ÏßÑ
+  final _contentController = TextEditingController();
+  bool _isLoading = false;
+
+  // ?Ä?Ä ?¨ÏßÑ ?†ÌÉù ?Ä?Ä
+  Future<void> _pickImage() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      imageQuality: 80,
+    );
+    if (picked != null) {
+      setState(() => _pickedImage = picked);
+    }
+  }
+
+  // ?Ä?Ä ?†Ìö®??Í≤Ä???Ä?Ä
+  bool _validate() {
+    if (_selectedSub == null || _pickedImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('??™©??Ï±ÑÏõåÏ£ºÏÑ∏??(Ïπ¥ÌÖåÍ≥†Î¶¨ ?†ÌÉù + ?¨ÏßÑ Ï≤®Î? ?ÑÏàò)'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  // ?Ä?Ä Í≤åÏãúÍ∏Ä ?±Î°ù ?Ä?Ä
+  Future<void> _submit() async {
+    if (!_validate()) return;
+    setState(() => _isLoading = true);
+
+   try {
+      // 1) ?åÏùºÎ™??ùÏÑ± (Platform.pathSeparator ?Ä??'/' ?¨Ïö© ?êÎäî ?®Ïàú??
+      // ??Î™®Î∞î??Í≥µÏö©?ºÎ°ú Í∞Ä???àÏ†Ñ??Î∞©Î≤ï?Ä ?ÑÎûò?Ä Í∞ôÏäµ?àÎã§.
+     
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${_pickedImage!.name}';
+      final bytes = await _pickedImage!.readAsBytes();
+
+      // 2) 'supabase' ?Ä???ÑÎûò?Ä Í∞ôÏù¥ ÏßÅÏ†ë ?∏Ï∂ú?òÏÑ∏??
+      await Supabase.instance.client.storage.from('posts').uploadBinary(
+        fileName,
+        bytes,
+        fileOptions: const FileOptions(contentType: 'image/jpeg'),
+      );
+
+      // 2) Public URL Í∞Ä?∏Ïò§Í∏?
+      final imageUrl =
+          _supabase.storage.from('posts').getPublicUrl(fileName);
+
+      // 3) posts ?åÏù¥Î∏?insert
+      await _supabase.from('posts').insert({
+        'category': _selectedSub,
+        'image_url': imageUrl,
+        'content': _contentController.text.trim().isEmpty
+            ? null
+            : _contentController.text.trim(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Í≤åÏãúÍ∏Ä???±Î°ù?òÏóà?µÎãà?? ?éâ'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).pop(); // ?¥Ï†Ñ ?îÎ©¥?ºÎ°ú
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('?§Î•ò Î∞úÏÉù: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä BUILD ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+  @override
+  Widget build(BuildContext context) {
+    final subCategories = _selectedMain != null
+        ? _categoryMap[_selectedMain]!
+        : <String>[];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Í≤åÏãúÍ∏Ä ?ëÏÑ±'),
+        centerTitle: true,
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+      ),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ?Ä?Ä 1. ?ÄÎ∂ÑÎ•ò ?†ÌÉù Ïπ¥Îìú ?Ä?Ä
+              _SectionCard(
+                title: '?ÄÎ∂ÑÎ•ò ?†ÌÉù',
+                child: Wrap(
+                  spacing: 12,
+                  children: _categoryMap.keys.map((main) {
+                    final selected = _selectedMain == main;
+                    return ChoiceChip(
+                      label: Text(main),
+                      selected: selected,
+                      selectedColor: Colors.deepPurple,
+                      labelStyle: TextStyle(
+                        color: selected ? Colors.white : Colors.black87,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      onSelected: (_) {
+                        setState(() {
+                          _selectedMain = main;
+                          _selectedSub = null; // ?åÎ∂ÑÎ•?Ï¥àÍ∏∞??
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+
+              // ?Ä?Ä 2. ?åÎ∂ÑÎ•??†ÌÉù Ïπ¥Îìú (?ÄÎ∂ÑÎ•ò ?†ÌÉù ???∏Ï∂ú) ?Ä?Ä
+              if (subCategories.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _SectionCard(
+                  title: '?åÎ∂ÑÎ•??†ÌÉù',
+                  child: Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
+                    children: subCategories.map((sub) {
+                      final selected = _selectedSub == sub;
+                      return ChoiceChip(
+                        label: Text(sub),
+                        selected: selected,
+                        selectedColor: Colors.deepPurple.shade300,
+                        labelStyle: TextStyle(
+                          color: selected ? Colors.white : Colors.black87,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        onSelected: (_) {
+                          setState(() => _selectedSub = sub);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+
+              // ?Ä?Ä 3. ?¨ÏßÑ Ï≤®Î? Ïπ¥Îìú ?Ä?Ä
+              _SectionCard(
+                title: '?¨ÏßÑ Ï≤®Î? (?ÑÏàò)',
+                child: Column(
+                  children: [
+                    // ÎØ∏Î¶¨Î≥¥Í∏∞
+                    if (_pickedImage != null)
+                      AspectRatio(
+                        aspectRatio: 16 / 9, // ?êÌïò??ÎπÑÏú®Î°?Í≥†Ï†ï (?? 16:9)
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            _pickedImage!.path,
+                            fit: BoxFit.contain, // ?àÎ? ???òÎ¶º
+                          ),
+                        ),
+                      ),
+                    if (_pickedImage != null) const SizedBox(height: 12),
+
+                    // ?¨ÏßÑ ?†ÌÉù Î≤ÑÌäº
+                    OutlinedButton.icon(
+                      onPressed: _pickImage,
+                      icon: const Icon(Icons.photo_library_outlined),
+                      label: Text(
+                        _pickedImage == null ? 'Í∞§Îü¨Î¶¨Ïóê???†ÌÉù' : '?¨ÏßÑ Î≥ÄÍ≤?,
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.deepPurple,
+                        side: const BorderSide(color: Colors.deepPurple),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 24,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ?Ä?Ä 4. ?¥Ïö© ?ÖÎ†• (?†ÌÉù) ?Ä?Ä
+              _SectionCard(
+                title: '?úÎßà??(?†ÌÉù)',
+                child: TextField(
+                  controller: _contentController,
+                  maxLines: 3,
+                  maxLength: 200,
+                  decoration: InputDecoration(
+                    hintText: '?òÍ≥† ?∂Ï? ÎßêÏù¥ ?àÎã§Î©??ÅÏñ¥Ï£ºÏÑ∏??..',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.deepPurple,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              // ?Ä?Ä 5. ?±Î°ù Î≤ÑÌäº ?Ä?Ä
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('?±Î°ù?òÍ∏∞'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _contentController.dispose();
+    super.dispose();
+  }
+}
+
+// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+// ?¨ÏÇ¨???πÏÖò Ïπ¥Îìú ?ÑÏ†Ø
+// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Colors.deepPurple,
+              ),
+            ),
+            const SizedBox(height: 14),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\home_screen.dart
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../core/category_data.dart';
+import 'widgets/healing_banner_card.dart';
+import 'post_list_page.dart';
+
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+/// HomeScreen: ?åÌÜµÍ≥??êÎßÅ Ïª®ÏÖâ
+/// ?∞Îúª???ÑÏù¥Î≥¥Î¶¨ Î∞∞Í≤Ω + Í∞êÏÑ± Ïπ¥Îìú Î∞∞ÎÑà
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFAF7F2),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 32),
+
+              // ?Ä?Ä ?∏ÏÇ¨ ?§Îçî ?Ä?Ä
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '?àÎÖï ?ëã',
+                      style: GoogleFonts.notoSansKr(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '?§Îäò???òÎ?\n?åÏïÑÍ∞ÄÎ≥ºÍπå?',
+                      style: GoogleFonts.notoSansKr(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF2E2E2E),
+                        height: 1.3,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 36),
+
+              // ?Ä?Ä ?¥Î©¥(Inner) ?πÏÖò ?Ä?Ä
+              _buildSectionLabel(
+                CategoryData.sectionLabels['?¥Î©¥(Inner)']!,
+                '?åô',
+              ),
+              const SizedBox(height: 12),
+              ..._buildBanners(context, '?¥Î©¥(Inner)', startIndex: 0),
+
+              const SizedBox(height: 40),
+
+              // ?Ä?Ä ?∏Î©¥(Outer) ?πÏÖò ?Ä?Ä
+              _buildSectionLabel(
+                CategoryData.sectionLabels['?∏Î©¥(Outer)']!,
+                '??,
+              ),
+              const SizedBox(height: 12),
+              ..._buildBanners(context, '?∏Î©¥(Outer)', startIndex: 3),
+
+              const SizedBox(height: 48),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// ?πÏÖò ?ºÎ≤® ?ÑÏ†Ø
+  Widget _buildSectionLabel(String label, String emoji) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 22)),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: GoogleFonts.notoSansKr(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF5A5A5A),
+              letterSpacing: -0.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ?¥Îãπ ?ÄÎ∂ÑÎ•ò??Î∞∞ÎÑà Î¶¨Ïä§???ùÏÑ±
+  List<Widget> _buildBanners(
+    BuildContext context,
+    String mainCategory, {
+    required int startIndex,
+  }) {
+    final subs = CategoryData.categoryMap[mainCategory]!;
+    return subs.asMap().entries.map((entry) {
+      final idx = entry.key;
+      final subName = entry.value;
+      final info = CategoryData.subCategoryDetails[subName]!;
+
+      return HealingBannerCard(
+        title: info.name,
+        emoji: info.emoji,
+        tagline: info.tagline,
+        icon: info.icon,
+        gradientColors: info.gradientColors,
+        animationIndex: startIndex + idx,
+        onTap: () {
+          Navigator.of(context).push(
+            PostListPage.fadeRoute(
+              subcategory: subName,
+              emoji: info.emoji,
+              gradientColors: info.gradientColors,
+            ),
+          );
+        },
+      );
+    }).toList();
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\post_list_page.dart
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+/// PostListPage
+/// ?åÎ∂ÑÎ•òÎ≥Ñ Í≤åÏãúÎ¨?Î¶¨Ïä§??(Î∞∞ÎÑà ?¥Î¶≠ ???òÏù¥?????ÑÌôò)
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+class PostListPage extends StatefulWidget {
+  final String subcategory;
+  final String emoji;
+  final List<Color> gradientColors;
+
+  const PostListPage({
+    super.key,
+    required this.subcategory,
+    required this.emoji,
+    required this.gradientColors,
+  });
+
+  /// ?òÏù¥?????ÑÌôò ?ºÏö∞??
+  static Route<void> fadeRoute({
+    required String subcategory,
+    required String emoji,
+    required List<Color> gradientColors,
+  }) {
+    return PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => PostListPage(
+        subcategory: subcategory,
+        emoji: emoji,
+        gradientColors: gradientColors,
+      ),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeInOut,
+          ),
+          child: child,
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 400),
+    );
+  }
+
+  @override
+  State<PostListPage> createState() => _PostListPageState();
+}
+
+class _PostListPageState extends State<PostListPage> {
+  final _supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> _posts = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPosts();
+  }
+
+  Future<void> _loadPosts() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final response = await _supabase
+          .from('posts')
+          .select()
+          .eq('category', widget.subcategory)
+          .order('created_at', ascending: false);
+
+      setState(() {
+        _posts = List<Map<String, dynamic>>.from(response);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFAF7F2),
+      appBar: AppBar(
+        title: Text(
+          '${widget.emoji} ${widget.subcategory}',
+          style: GoogleFonts.notoSansKr(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF3E3E3E),
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
+      ),
+      body: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(
+                color: widget.gradientColors[1],
+              ),
+            )
+          : _error != null
+              ? _buildError()
+              : _posts.isEmpty
+                  ? _buildEmpty()
+                  : _buildPostList(),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.cloud_off_rounded, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              '?? Î∂àÎü¨?§Ï? Î™ªÌñà?¥Ïöî',
+              style: GoogleFonts.notoSansKr(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.notoSansKr(
+                fontSize: 13,
+                color: Colors.grey[400],
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadPosts,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(
+                '?§Ïãú ?¥Î≥ºÍπ?',
+                style: GoogleFonts.notoSansKr(fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: widget.gradientColors[1],
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: widget.gradientColors[0].withOpacity(0.15),
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Center(
+              child: Text(
+                widget.emoji,
+                style: const TextStyle(fontSize: 48),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            '?ÑÏßÅ ?ëÏÑ±??Í∏Ä???ÜÏñ¥??,
+            style: GoogleFonts.notoSansKr(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Ï≤?Î≤àÏß∏Î°??¥ÏïºÍ∏∞Î? ?òÎà†Î≥ºÍπå?',
+            style: GoogleFonts.notoSansKr(
+              fontSize: 14,
+              color: Colors.grey[400],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostList() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _posts.length,
+      itemBuilder: (context, index) {
+        final post = _posts[index];
+        return _PostCard(
+          post: post,
+          gradientColors: widget.gradientColors,
+        );
+      },
+    );
+  }
+}
+
+/// ?Ä?Ä Í∞úÎ≥Ñ ?¨Ïä§??Ïπ¥Îìú ?Ä?Ä
+class _PostCard extends StatelessWidget {
+  final Map<String, dynamic> post;
+  final List<Color> gradientColors;
+
+  const _PostCard({
+    required this.post,
+    required this.gradientColors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = post['image_url'] as String?;
+    final content = post['content'] as String?;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ?¥Î?ÏßÄ
+            if (imageUrl != null)
+              AspectRatio(
+                aspectRatio: 16 / 10,
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: gradientColors[0].withOpacity(0.1),
+                    child: const Center(
+                      child: Icon(
+                        Icons.image_not_supported_outlined,
+                        size: 48,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            // ?çÏä§??
+            if (content != null && content.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: Text(
+                  content,
+                  style: GoogleFonts.notoSansKr(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
+                    color: const Color(0xFF3E3E3E),
+                    height: 1.6,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\profile_screen.dart
+import 'package:flutter/material.dart';
+import '../services/profile_service.dart';
+
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final ProfileService _profileService = ProfileService();
+  LeaderboardProfile? _profile;
+  bool _isLoading = true;
+  String? _error;
+  int _selectedIndex = 0; // ?ÑÏû¨ ?†ÌÉù???åÏä§???†Ï? ?∏Îç±??
+
+  static const List<String> _tierLabels = [
+    'F', 'E', 'D', 'C', 'B', 'A', 'GOD'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final profile = await _profileService.getMyProfile(
+        userId: testUserIds[_selectedIndex],
+      );
+      setState(() {
+        _profile = profile;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _selectUser(int index) {
+    if (index == _selectedIndex) return;
+    setState(() => _selectedIndex = index);
+    _loadProfile();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF1A1A2E),
+      appBar: AppBar(
+        title: const Text('???ÑÎ°ú??),
+        centerTitle: true,
+        backgroundColor: const Color(0xFF16213E),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          // ?Ä?Ä ?±Í∏â ?†ÌÉù Î∞?(?åÏä§?∏Ïö©) ?Ä?Ä
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            color: const Color(0xFF16213E),
+            child: Column(
+              children: [
+                Text(
+                  '?ß™ ?±Í∏âÎ≥??åÏä§??,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[500],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(_tierLabels.length, (index) {
+                    final isSelected = index == _selectedIndex;
+                    return GestureDetector(
+                      onTap: () => _selectUser(index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: isSelected
+                              ? Colors.deepPurpleAccent
+                              : Colors.white.withOpacity(0.05),
+                          border: Border.all(
+                            color: isSelected
+                                ? Colors.deepPurpleAccent
+                                : Colors.white.withOpacity(0.1),
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.deepPurpleAccent
+                                        .withOpacity(0.4),
+                                    blurRadius: 8,
+                                  )
+                                ]
+                              : null,
+                        ),
+                        child: Text(
+                          _tierLabels[index],
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight:
+                                isSelected ? FontWeight.bold : FontWeight.w500,
+                            color:
+                                isSelected ? Colors.white : Colors.grey[400],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ),
+          ),
+
+          // ?Ä?Ä Î≥∏Î¨∏ ?Ä?Ä
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                        color: Colors.deepPurpleAccent))
+                : _error != null
+                    ? _buildError()
+                    : _profile != null
+                        ? _buildProfileCard()
+                        : _buildEmpty(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.redAccent),
+            const SizedBox(height: 16),
+            Text(
+              '?∞Ïù¥?∞Î? Î∂àÎü¨?????ÜÏäµ?àÎã§',
+              style: TextStyle(fontSize: 18, color: Colors.grey[300]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadProfile,
+              icon: const Icon(Icons.refresh),
+              label: const Text('?§Ïãú ?úÎèÑ'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurpleAccent,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.person_off, size: 64, color: Colors.grey[600]),
+          const SizedBox(height: 16),
+          Text(
+            '?ÑÎ°ú?ÑÏùÑ Ï∞æÏùÑ ???ÜÏäµ?àÎã§',
+            style: TextStyle(fontSize: 18, color: Colors.grey[400]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileCard() {
+    final profile = _profile!;
+
+    // ÏßÑÌñâÎ•?Í≥ÑÏÇ∞: next_tier_remaining??null?¥Î©¥ ÏµúÍ≥† ?±Í∏â
+    final bool isMaxTier = profile.nextTierRemaining == null;
+    final double progressValue = isMaxTier
+        ? 1.0
+        : profile.nextTierRemaining! > 0
+            ? profile.totalPoints /
+                (profile.totalPoints + profile.nextTierRemaining!)
+            : 1.0;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+
+          // ?Ä?Ä ?ÑÎ°ú???ÑÎ∞î?Ä ?Ä?Ä
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6C63FF), Color(0xFFE040FB)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF6C63FF).withOpacity(0.4),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Icon(Icons.person, size: 48, color: Colors.white),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ?Ä?Ä ?±Í∏â + ?âÎÑ§??(?¨Í≤å Í∞ïÏ°∞) ?Ä?Ä
+          Text(
+            profile.tierDisplay,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: Colors.amberAccent,
+              letterSpacing: 1.2,
+              shadows: [
+                Shadow(
+                  color: Colors.amberAccent,
+                  blurRadius: 12,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            profile.nickname,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          // ?Ä?Ä ?ÑÎ°ú??Ïπ¥Îìú ?Ä?Ä
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1E1E3F), Color(0xFF2A2A5A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(
+                color: Colors.deepPurpleAccent.withOpacity(0.3),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // ?¨Ïù∏???πÏÖò
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.star, color: Colors.amberAccent, size: 28),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${profile.totalPoints}',
+                      style: const TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'pts',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey[400],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // ?§Ïùå ?±Í∏â ÏßÑÌñâ??
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withOpacity(0.05),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            isMaxTier ? '?èÜ ÏµúÍ≥† ?±Í∏â ?¨ÏÑ±!' : '?§Ïùå ?±Í∏âÍπåÏ?',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[400],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (!isMaxTier)
+                            Text(
+                              '${profile.nextTierRemaining}pts ?®Ïùå',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.amberAccent,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: progressValue,
+                          minHeight: 12,
+                          backgroundColor: Colors.grey[800],
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            isMaxTier
+                                ? Colors.amberAccent
+                                : Colors.deepPurpleAccent,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${(progressValue * 100).toInt()}%',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\tabs\appearance_tab.dart
+import 'package:flutter/material.dart';
+
+class AppearanceTab extends StatelessWidget {
+  const AppearanceTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.face, size: 64, color: Colors.deepPurple),
+          SizedBox(height: 16),
+          Text(
+            '?∏Î™®',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text(
+            '?∏Î™® Í¥ÄÎ¶??ÅÏùÑ ?ïÏù∏?òÏÑ∏??,
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\tabs\coordi_tab.dart
+import 'package:flutter/material.dart';
+
+class CoordiTab extends StatelessWidget {
+  const CoordiTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.checkroom, size: 64, color: Colors.deepPurple),
+          SizedBox(height: 16),
+          Text(
+            'ÏΩîÎîî',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text(
+            '?òÎßå??ÏΩîÎîîÎ•?ÎßåÎì§?¥Î≥¥?∏Ïöî',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\tabs\makeup_tab.dart
+import 'package:flutter/material.dart';
+
+class MakeupTab extends StatelessWidget {
+  const MakeupTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.brush, size: 64, color: Colors.deepPurple),
+          SizedBox(height: 16),
+          Text(
+            '?îÏû•',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text(
+            '?îÏû•Î≤ïÏùÑ Î∞∞ÏõåÎ≥¥ÏÑ∏??,
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\widgets\healing_banner_card.dart
+import 'dart:math';
+import 'package:flutter/material.dart';
+
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+/// HealingBannerCard
+/// Í∞êÏÑ±?ÅÏù∏ ?åÎ°ú??Ïπ¥Îìú Î∞∞ÎÑà ?ÑÏ†Ø
+/// Î∂Ä?úÎü¨??Í∑∏Îùº?îÏñ∏??+ ÎØ∏ÏÑ∏ ?åÎ°ú??+ ?∞Ïπò Î∞îÏö¥??/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+class HealingBannerCard extends StatefulWidget {
+  final String title;
+  final String emoji;
+  final String tagline;
+  final IconData icon;
+  final List<Color> gradientColors;
+  final VoidCallback onTap;
+  final int animationIndex;
+
+  const HealingBannerCard({
+    super.key,
+    required this.title,
+    required this.emoji,
+    required this.tagline,
+    required this.icon,
+    required this.gradientColors,
+    required this.onTap,
+    this.animationIndex = 0,
+  });
+
+  @override
+  State<HealingBannerCard> createState() => _HealingBannerCardState();
+}
+
+class _HealingBannerCardState extends State<HealingBannerCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _floatController;
+  double _scale = 1.0;
+
+  @override
+  void initState() {
+    super.initState();
+    final duration = 2500 + (widget.animationIndex * 400);
+    _floatController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: duration),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _floatController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _floatController,
+      builder: (context, child) {
+        final floatOffset =
+            sin((_floatController.value * 2 * pi) +
+                    (widget.animationIndex * 0.8)) *
+                4.0;
+        return Transform.translate(
+          offset: Offset(0, floatOffset),
+          child: child,
+        );
+      },
+      child: _buildCard(),
+    );
+  }
+
+  Widget _buildCard() {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _scale = 0.97),
+      onTapUp: (_) {
+        setState(() => _scale = 1.0);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _scale = 1.0),
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutBack,
+        child: Container(
+          height: 160,
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              colors: [
+                widget.gradientColors[0],
+                widget.gradientColors[1],
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: widget.gradientColors[1].withValues(alpha: 0.25),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Stack(
+              children: [
+                // ?§ÌÅ¨ ?§Î≤Ñ?àÏù¥
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.black.withValues(alpha: 0.05),
+                          Colors.black.withValues(alpha: 0.3),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                ),
+                // Î∞∞Í≤Ω ?•Ïãù ?ÑÏù¥ÏΩ?                Positioned(
+                  right: -15,
+                  bottom: -15,
+                  child: Icon(
+                    widget.icon,
+                    size: 120,
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
+                ),
+                // Ïª®ÌÖêÏ∏?                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              children: [
+                                Text(widget.emoji,
+                                    style: const TextStyle(fontSize: 28)),
+                                const SizedBox(width: 10),
+                                Flexible(
+                                  child: Text(
+                                    widget.title,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      letterSpacing: -0.3,
+                                      shadows: [
+                                        Shadow(
+                                            color: Colors.black26,
+                                            blurRadius: 4),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              widget.tagline,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.white.withValues(alpha: 0.9),
+                                height: 1.5,
+                                shadows: const [
+                                  Shadow(
+                                      color: Colors.black12, blurRadius: 3),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_forward_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\services\auth_service.dart
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Supabase ?∏Ï¶ù ?úÎπÑ??
+class AuthService {
+  final SupabaseClient _client = Supabase.instance.client;
+
+  /// ?ÑÏû¨ Î°úÍ∑∏?∏Îêú ?¨Ïö©??
+  User? get currentUser => _client.auth.currentUser;
+
+  /// ?∏Ï¶ù ?ÅÌÉú Î≥ÄÍ≤??§Ìä∏Î¶?
+  Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
+
+  /// ?¥Î©î???®Ïä§?åÎìú ?åÏõêÍ∞Ä??
+  Future<AuthResponse> signUp({
+    required String email,
+    required String password,
+  }) async {
+    return await _client.auth.signUp(
+      email: email,
+      password: password,
+    );
+  }
+
+  /// ?¥Î©î???®Ïä§?åÎìú Î°úÍ∑∏??
+  Future<AuthResponse> signIn({
+    required String email,
+    required String password,
+  }) async {
+    return await _client.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
+  }
+
+  /// Î°úÍ∑∏?ÑÏõÉ
+  Future<void> signOut() async {
+    await _client.auth.signOut();
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\services\profile_service.dart
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// ?åÏä§?∏Ïö© ?¨Ïö©??ID Î™©Î°ù (F~GOD ?±Í∏âÎ≥?
+const List<String> testUserIds = [
+  '00000000-0000-0000-0000-000000000000', // F?±Í∏â
+  '11111111-1111-1111-1111-111111111111', // E?±Í∏â
+  '22222222-2222-2222-2222-222222222222', // D?±Í∏â
+  '33333333-3333-3333-3333-333333333333', // C?±Í∏â
+  '44444444-4444-4444-4444-444444444444', // B?±Í∏â
+  '55555555-5555-5555-5555-555555555555', // A?±Í∏â
+  '66666666-6666-6666-6666-666666666666', // GOD?±Í∏â
+];
+const String testUserId = '00000000-0000-0000-0000-000000000000';
+
+/// Î¶¨ÎçîÎ≥¥Îìú ?∞Ïù¥??Î™®Îç∏
+class LeaderboardProfile {
+  final String id;
+  final String nickname;
+  final int totalPoints;
+  final String tierDisplay;
+  final int? nextTierRemaining;
+
+  LeaderboardProfile({
+    required this.id,
+    required this.nickname,
+    required this.totalPoints,
+    required this.tierDisplay,
+    this.nextTierRemaining,
+  });
+
+  factory LeaderboardProfile.fromMap(Map<String, dynamic> map) {
+    return LeaderboardProfile(
+      id: map['id'] as String,
+      nickname: map['nickname'] as String,
+      totalPoints: (map['total_points'] as num).toInt(),
+      tierDisplay: map['tier_display'] as String? ?? '',
+      nextTierRemaining: map['next_tier_remaining'] != null
+          ? (map['next_tier_remaining'] as num).toInt()
+          : null,
+    );
+  }
+}
+
+/// ?ÑÎ°ú??Î¶¨ÎçîÎ≥¥Îìú ?úÎπÑ??
+class ProfileService {
+  final SupabaseClient _client = Supabase.instance.client;
+
+  /// leaderboards Î∑∞Ïóê???πÏ†ï ?¨Ïö©???ïÎ≥¥Î•?Í∞Ä?∏Ïò¥
+  Future<LeaderboardProfile?> getMyProfile({String? userId}) async {
+    final uid = userId ?? testUserId;
+
+    final response = await _client
+        .from('leaderboards')
+        .select()
+        .eq('id', uid)
+        .maybeSingle();
+
+    if (response == null) return null;
+    return LeaderboardProfile.fromMap(response);
+  }
+
+  /// leaderboards Î∑∞Ïóê???ÑÏ≤¥ ?úÏúÑÎ•?Í∞Ä?∏Ïò¥
+  Future<List<LeaderboardProfile>> getLeaderboard({int limit = 20}) async {
+    final response = await _client
+        .from('leaderboards')
+        .select()
+        .order('total_points', ascending: false)
+        .limit(limit);
+
+    return (response as List)
+        .map((e) => LeaderboardProfile.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\main.dart
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'core/supabase_config.dart';
+import 'screens/profile_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/create_post_page.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Supabase Ï¥àÍ∏∞??
+  await Supabase.initialize(
+    url: SupabaseConfig.supabaseUrl,
+    anonKey: SupabaseConfig.supabaseAnonKey,
+  );
+
+  runApp(const SoloTutorApp());
+}
+
+/// Supabase ?¥Îùº?¥Ïñ∏?∏Ïóê ?ΩÍ≤å ?ëÍ∑º?òÍ∏∞ ?ÑÌïú Í∏ÄÎ°úÎ≤å getter
+final supabase = Supabase.instance.client;
+
+class SoloTutorApp extends StatelessWidget {
+  const SoloTutorApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Solo Tutor',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.deepPurple,
+        scaffoldBackgroundColor: const Color(0xFFFAF7F2),
+        appBarTheme: const AppBarTheme(
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: Color(0xFF3E3E3E),
+          surfaceTintColor: Colors.transparent,
+        ),
+        textTheme: GoogleFonts.notoSansKrTextTheme(
+          Theme.of(context).textTheme,
+        ),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF7E57C2),
+          surface: const Color(0xFFFAF7F2),
+        ),
+      ),
+      home: const HomeScreen(),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\core\category_data.dart
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\core\supabase_config.dart
+/// Supabase ?§Ï†ï ?ÅÏàò
+class SupabaseConfig {
+  static const String supabaseUrl = 'https://mlhqhjfsllfthtztzxjc.supabase.co';
+  static const String supabaseAnonKey =
+      'sb_publishable_ruKNwLtzzjOvyPOpC6ZwbQ_h96hpf7q';
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\create_post_page.dart
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/category_data.dart';
+
+
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+/// Í≤åÏãúÍ∏Ä ?ëÏÑ± ?òÏù¥ÏßÄ (CreatePostPage)
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+class CreatePostPage extends StatefulWidget {
+  const CreatePostPage({super.key});
+
+  @override
+  State<CreatePostPage> createState() => _CreatePostPageState();
+}
+
+class _CreatePostPageState extends State<CreatePostPage> {
+  // ?Ä?Ä Supabase ?¥Îùº?¥Ïñ∏???Ä?Ä
+  final _supabase = Supabase.instance.client;
+
+  // ?Ä?Ä Ïπ¥ÌÖåÍ≥†Î¶¨ Îß? Í≥µÏú† ?∞Ïù¥???¨Ïö© ?Ä?Ä
+  static const _categoryMap = CategoryData.categoryMap;
+
+  // ?Ä?Ä ?ÅÌÉú ?Ä?Ä
+  String? _selectedMain; // ?ÄÎ∂ÑÎ•ò
+  String? _selectedSub; // ?åÎ∂ÑÎ•?
+  XFile? _pickedImage; // ?†ÌÉù???¨ÏßÑ
+  final _contentController = TextEditingController();
+  bool _isLoading = false;
+
+  // ?Ä?Ä ?¨ÏßÑ ?†ÌÉù ?Ä?Ä
+  Future<void> _pickImage() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      imageQuality: 80,
+    );
+    if (picked != null) {
+      setState(() => _pickedImage = picked);
+    }
+  }
+
+  // ?Ä?Ä ?†Ìö®??Í≤Ä???Ä?Ä
+  bool _validate() {
+    if (_selectedSub == null || _pickedImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('??™©??Ï±ÑÏõåÏ£ºÏÑ∏??(Ïπ¥ÌÖåÍ≥†Î¶¨ ?†ÌÉù + ?¨ÏßÑ Ï≤®Î? ?ÑÏàò)'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  // ?Ä?Ä Í≤åÏãúÍ∏Ä ?±Î°ù ?Ä?Ä
+  Future<void> _submit() async {
+    if (!_validate()) return;
+    setState(() => _isLoading = true);
+
+   try {
+      // 1) ?åÏùºÎ™??ùÏÑ± (Platform.pathSeparator ?Ä??'/' ?¨Ïö© ?êÎäî ?®Ïàú??
+      // ??Î™®Î∞î??Í≥µÏö©?ºÎ°ú Í∞Ä???àÏ†Ñ??Î∞©Î≤ï?Ä ?ÑÎûò?Ä Í∞ôÏäµ?àÎã§.
+     
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${_pickedImage!.name}';
+      final bytes = await _pickedImage!.readAsBytes();
+
+      // 2) 'supabase' ?Ä???ÑÎûò?Ä Í∞ôÏù¥ ÏßÅÏ†ë ?∏Ï∂ú?òÏÑ∏??
+      await Supabase.instance.client.storage.from('posts').uploadBinary(
+        fileName,
+        bytes,
+        fileOptions: const FileOptions(contentType: 'image/jpeg'),
+      );
+
+      // 2) Public URL Í∞Ä?∏Ïò§Í∏?
+      final imageUrl =
+          _supabase.storage.from('posts').getPublicUrl(fileName);
+
+      // 3) posts ?åÏù¥Î∏?insert
+      await _supabase.from('posts').insert({
+        'category': _selectedSub,
+        'image_url': imageUrl,
+        'content': _contentController.text.trim().isEmpty
+            ? null
+            : _contentController.text.trim(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Í≤åÏãúÍ∏Ä???±Î°ù?òÏóà?µÎãà?? ?éâ'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).pop(); // ?¥Ï†Ñ ?îÎ©¥?ºÎ°ú
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('?§Î•ò Î∞úÏÉù: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä BUILD ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+  @override
+  Widget build(BuildContext context) {
+    final subCategories = _selectedMain != null
+        ? _categoryMap[_selectedMain]!
+        : <String>[];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Í≤åÏãúÍ∏Ä ?ëÏÑ±'),
+        centerTitle: true,
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+      ),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ?Ä?Ä 1. ?ÄÎ∂ÑÎ•ò ?†ÌÉù Ïπ¥Îìú ?Ä?Ä
+              _SectionCard(
+                title: '?ÄÎ∂ÑÎ•ò ?†ÌÉù',
+                child: Wrap(
+                  spacing: 12,
+                  children: _categoryMap.keys.map((main) {
+                    final selected = _selectedMain == main;
+                    return ChoiceChip(
+                      label: Text(main),
+                      selected: selected,
+                      selectedColor: Colors.deepPurple,
+                      labelStyle: TextStyle(
+                        color: selected ? Colors.white : Colors.black87,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      onSelected: (_) {
+                        setState(() {
+                          _selectedMain = main;
+                          _selectedSub = null; // ?åÎ∂ÑÎ•?Ï¥àÍ∏∞??
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+
+              // ?Ä?Ä 2. ?åÎ∂ÑÎ•??†ÌÉù Ïπ¥Îìú (?ÄÎ∂ÑÎ•ò ?†ÌÉù ???∏Ï∂ú) ?Ä?Ä
+              if (subCategories.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _SectionCard(
+                  title: '?åÎ∂ÑÎ•??†ÌÉù',
+                  child: Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
+                    children: subCategories.map((sub) {
+                      final selected = _selectedSub == sub;
+                      return ChoiceChip(
+                        label: Text(sub),
+                        selected: selected,
+                        selectedColor: Colors.deepPurple.shade300,
+                        labelStyle: TextStyle(
+                          color: selected ? Colors.white : Colors.black87,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        onSelected: (_) {
+                          setState(() => _selectedSub = sub);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+
+              // ?Ä?Ä 3. ?¨ÏßÑ Ï≤®Î? Ïπ¥Îìú ?Ä?Ä
+              _SectionCard(
+                title: '?¨ÏßÑ Ï≤®Î? (?ÑÏàò)',
+                child: Column(
+                  children: [
+                    // ÎØ∏Î¶¨Î≥¥Í∏∞
+                    if (_pickedImage != null)
+                      AspectRatio(
+                        aspectRatio: 16 / 9, // ?êÌïò??ÎπÑÏú®Î°?Í≥†Ï†ï (?? 16:9)
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            _pickedImage!.path,
+                            fit: BoxFit.contain, // ?àÎ? ???òÎ¶º
+                          ),
+                        ),
+                      ),
+                    if (_pickedImage != null) const SizedBox(height: 12),
+
+                    // ?¨ÏßÑ ?†ÌÉù Î≤ÑÌäº
+                    OutlinedButton.icon(
+                      onPressed: _pickImage,
+                      icon: const Icon(Icons.photo_library_outlined),
+                      label: Text(
+                        _pickedImage == null ? 'Í∞§Îü¨Î¶¨Ïóê???†ÌÉù' : '?¨ÏßÑ Î≥ÄÍ≤?,
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.deepPurple,
+                        side: const BorderSide(color: Colors.deepPurple),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 24,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ?Ä?Ä 4. ?¥Ïö© ?ÖÎ†• (?†ÌÉù) ?Ä?Ä
+              _SectionCard(
+                title: '?úÎßà??(?†ÌÉù)',
+                child: TextField(
+                  controller: _contentController,
+                  maxLines: 3,
+                  maxLength: 200,
+                  decoration: InputDecoration(
+                    hintText: '?òÍ≥† ?∂Ï? ÎßêÏù¥ ?àÎã§Î©??ÅÏñ¥Ï£ºÏÑ∏??..',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.deepPurple,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              // ?Ä?Ä 5. ?±Î°ù Î≤ÑÌäº ?Ä?Ä
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('?±Î°ù?òÍ∏∞'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _contentController.dispose();
+    super.dispose();
+  }
+}
+
+// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+// ?¨ÏÇ¨???πÏÖò Ïπ¥Îìú ?ÑÏ†Ø
+// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Colors.deepPurple,
+              ),
+            ),
+            const SizedBox(height: 14),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\home_screen.dart
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../core/category_data.dart';
+import 'widgets/healing_banner_card.dart';
+import 'post_list_page.dart';
+
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+/// HomeScreen: ?åÌÜµÍ≥??êÎßÅ Ïª®ÏÖâ
+/// ?∞Îúª???ÑÏù¥Î≥¥Î¶¨ Î∞∞Í≤Ω + Í∞êÏÑ± Ïπ¥Îìú Î∞∞ÎÑà
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFAF7F2),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 32),
+
+              // ?Ä?Ä ?∏ÏÇ¨ ?§Îçî ?Ä?Ä
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '?àÎÖï ?ëã',
+                      style: GoogleFonts.notoSansKr(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '?§Îäò???òÎ?\n?åÏïÑÍ∞ÄÎ≥ºÍπå?',
+                      style: GoogleFonts.notoSansKr(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF2E2E2E),
+                        height: 1.3,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 36),
+
+              // ?Ä?Ä ?¥Î©¥(Inner) ?πÏÖò ?Ä?Ä
+              _buildSectionLabel(
+                CategoryData.sectionLabels['?¥Î©¥(Inner)']!,
+                '?åô',
+              ),
+              const SizedBox(height: 12),
+              ..._buildBanners(context, '?¥Î©¥(Inner)', startIndex: 0),
+
+              const SizedBox(height: 40),
+
+              // ?Ä?Ä ?∏Î©¥(Outer) ?πÏÖò ?Ä?Ä
+              _buildSectionLabel(
+                CategoryData.sectionLabels['?∏Î©¥(Outer)']!,
+                '??,
+              ),
+              const SizedBox(height: 12),
+              ..._buildBanners(context, '?∏Î©¥(Outer)', startIndex: 3),
+
+              const SizedBox(height: 48),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// ?πÏÖò ?ºÎ≤® ?ÑÏ†Ø
+  Widget _buildSectionLabel(String label, String emoji) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 22)),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: GoogleFonts.notoSansKr(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF5A5A5A),
+              letterSpacing: -0.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ?¥Îãπ ?ÄÎ∂ÑÎ•ò??Î∞∞ÎÑà Î¶¨Ïä§???ùÏÑ±
+  List<Widget> _buildBanners(
+    BuildContext context,
+    String mainCategory, {
+    required int startIndex,
+  }) {
+    final subs = CategoryData.categoryMap[mainCategory]!;
+    return subs.asMap().entries.map((entry) {
+      final idx = entry.key;
+      final subName = entry.value;
+      final info = CategoryData.subCategoryDetails[subName]!;
+
+      return HealingBannerCard(
+        title: info.name,
+        emoji: info.emoji,
+        tagline: info.tagline,
+        icon: info.icon,
+        gradientColors: info.gradientColors,
+        animationIndex: startIndex + idx,
+        onTap: () {
+          Navigator.of(context).push(
+            PostListPage.fadeRoute(
+              subcategory: subName,
+              emoji: info.emoji,
+              gradientColors: info.gradientColors,
+            ),
+          );
+        },
+      );
+    }).toList();
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\post_list_page.dart
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+/// PostListPage
+/// ?åÎ∂ÑÎ•òÎ≥Ñ Í≤åÏãúÎ¨?Î¶¨Ïä§??(Î∞∞ÎÑà ?¥Î¶≠ ???òÏù¥?????ÑÌôò)
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+class PostListPage extends StatefulWidget {
+  final String subcategory;
+  final String emoji;
+  final List<Color> gradientColors;
+
+  const PostListPage({
+    super.key,
+    required this.subcategory,
+    required this.emoji,
+    required this.gradientColors,
+  });
+
+  /// ?òÏù¥?????ÑÌôò ?ºÏö∞??
+  static Route<void> fadeRoute({
+    required String subcategory,
+    required String emoji,
+    required List<Color> gradientColors,
+  }) {
+    return PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => PostListPage(
+        subcategory: subcategory,
+        emoji: emoji,
+        gradientColors: gradientColors,
+      ),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeInOut,
+          ),
+          child: child,
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 400),
+    );
+  }
+
+  @override
+  State<PostListPage> createState() => _PostListPageState();
+}
+
+class _PostListPageState extends State<PostListPage> {
+  final _supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> _posts = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPosts();
+  }
+
+  Future<void> _loadPosts() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final response = await _supabase
+          .from('posts')
+          .select()
+          .eq('category', widget.subcategory)
+          .order('created_at', ascending: false);
+
+      setState(() {
+        _posts = List<Map<String, dynamic>>.from(response);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFAF7F2),
+      appBar: AppBar(
+        title: Text(
+          '${widget.emoji} ${widget.subcategory}',
+          style: GoogleFonts.notoSansKr(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF3E3E3E),
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
+      ),
+      body: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(
+                color: widget.gradientColors[1],
+              ),
+            )
+          : _error != null
+              ? _buildError()
+              : _posts.isEmpty
+                  ? _buildEmpty()
+                  : _buildPostList(),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.cloud_off_rounded, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              '?? Î∂àÎü¨?§Ï? Î™ªÌñà?¥Ïöî',
+              style: GoogleFonts.notoSansKr(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.notoSansKr(
+                fontSize: 13,
+                color: Colors.grey[400],
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadPosts,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(
+                '?§Ïãú ?¥Î≥ºÍπ?',
+                style: GoogleFonts.notoSansKr(fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: widget.gradientColors[1],
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: widget.gradientColors[0].withOpacity(0.15),
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Center(
+              child: Text(
+                widget.emoji,
+                style: const TextStyle(fontSize: 48),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            '?ÑÏßÅ ?ëÏÑ±??Í∏Ä???ÜÏñ¥??,
+            style: GoogleFonts.notoSansKr(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Ï≤?Î≤àÏß∏Î°??¥ÏïºÍ∏∞Î? ?òÎà†Î≥ºÍπå?',
+            style: GoogleFonts.notoSansKr(
+              fontSize: 14,
+              color: Colors.grey[400],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostList() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _posts.length,
+      itemBuilder: (context, index) {
+        final post = _posts[index];
+        return _PostCard(
+          post: post,
+          gradientColors: widget.gradientColors,
+        );
+      },
+    );
+  }
+}
+
+/// ?Ä?Ä Í∞úÎ≥Ñ ?¨Ïä§??Ïπ¥Îìú ?Ä?Ä
+class _PostCard extends StatelessWidget {
+  final Map<String, dynamic> post;
+  final List<Color> gradientColors;
+
+  const _PostCard({
+    required this.post,
+    required this.gradientColors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = post['image_url'] as String?;
+    final content = post['content'] as String?;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ?¥Î?ÏßÄ
+            if (imageUrl != null)
+              AspectRatio(
+                aspectRatio: 16 / 10,
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: gradientColors[0].withOpacity(0.1),
+                    child: const Center(
+                      child: Icon(
+                        Icons.image_not_supported_outlined,
+                        size: 48,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            // ?çÏä§??
+            if (content != null && content.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: Text(
+                  content,
+                  style: GoogleFonts.notoSansKr(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
+                    color: const Color(0xFF3E3E3E),
+                    height: 1.6,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\profile_screen.dart
+import 'package:flutter/material.dart';
+import '../services/profile_service.dart';
+
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final ProfileService _profileService = ProfileService();
+  LeaderboardProfile? _profile;
+  bool _isLoading = true;
+  String? _error;
+  int _selectedIndex = 0; // ?ÑÏû¨ ?†ÌÉù???åÏä§???†Ï? ?∏Îç±??
+
+  static const List<String> _tierLabels = [
+    'F', 'E', 'D', 'C', 'B', 'A', 'GOD'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final profile = await _profileService.getMyProfile(
+        userId: testUserIds[_selectedIndex],
+      );
+      setState(() {
+        _profile = profile;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _selectUser(int index) {
+    if (index == _selectedIndex) return;
+    setState(() => _selectedIndex = index);
+    _loadProfile();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF1A1A2E),
+      appBar: AppBar(
+        title: const Text('???ÑÎ°ú??),
+        centerTitle: true,
+        backgroundColor: const Color(0xFF16213E),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          // ?Ä?Ä ?±Í∏â ?†ÌÉù Î∞?(?åÏä§?∏Ïö©) ?Ä?Ä
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            color: const Color(0xFF16213E),
+            child: Column(
+              children: [
+                Text(
+                  '?ß™ ?±Í∏âÎ≥??åÏä§??,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[500],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(_tierLabels.length, (index) {
+                    final isSelected = index == _selectedIndex;
+                    return GestureDetector(
+                      onTap: () => _selectUser(index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: isSelected
+                              ? Colors.deepPurpleAccent
+                              : Colors.white.withOpacity(0.05),
+                          border: Border.all(
+                            color: isSelected
+                                ? Colors.deepPurpleAccent
+                                : Colors.white.withOpacity(0.1),
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.deepPurpleAccent
+                                        .withOpacity(0.4),
+                                    blurRadius: 8,
+                                  )
+                                ]
+                              : null,
+                        ),
+                        child: Text(
+                          _tierLabels[index],
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight:
+                                isSelected ? FontWeight.bold : FontWeight.w500,
+                            color:
+                                isSelected ? Colors.white : Colors.grey[400],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ),
+          ),
+
+          // ?Ä?Ä Î≥∏Î¨∏ ?Ä?Ä
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                        color: Colors.deepPurpleAccent))
+                : _error != null
+                    ? _buildError()
+                    : _profile != null
+                        ? _buildProfileCard()
+                        : _buildEmpty(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.redAccent),
+            const SizedBox(height: 16),
+            Text(
+              '?∞Ïù¥?∞Î? Î∂àÎü¨?????ÜÏäµ?àÎã§',
+              style: TextStyle(fontSize: 18, color: Colors.grey[300]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadProfile,
+              icon: const Icon(Icons.refresh),
+              label: const Text('?§Ïãú ?úÎèÑ'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurpleAccent,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.person_off, size: 64, color: Colors.grey[600]),
+          const SizedBox(height: 16),
+          Text(
+            '?ÑÎ°ú?ÑÏùÑ Ï∞æÏùÑ ???ÜÏäµ?àÎã§',
+            style: TextStyle(fontSize: 18, color: Colors.grey[400]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileCard() {
+    final profile = _profile!;
+
+    // ÏßÑÌñâÎ•?Í≥ÑÏÇ∞: next_tier_remaining??null?¥Î©¥ ÏµúÍ≥† ?±Í∏â
+    final bool isMaxTier = profile.nextTierRemaining == null;
+    final double progressValue = isMaxTier
+        ? 1.0
+        : profile.nextTierRemaining! > 0
+            ? profile.totalPoints /
+                (profile.totalPoints + profile.nextTierRemaining!)
+            : 1.0;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+
+          // ?Ä?Ä ?ÑÎ°ú???ÑÎ∞î?Ä ?Ä?Ä
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6C63FF), Color(0xFFE040FB)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF6C63FF).withOpacity(0.4),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Icon(Icons.person, size: 48, color: Colors.white),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ?Ä?Ä ?±Í∏â + ?âÎÑ§??(?¨Í≤å Í∞ïÏ°∞) ?Ä?Ä
+          Text(
+            profile.tierDisplay,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: Colors.amberAccent,
+              letterSpacing: 1.2,
+              shadows: [
+                Shadow(
+                  color: Colors.amberAccent,
+                  blurRadius: 12,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            profile.nickname,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          // ?Ä?Ä ?ÑÎ°ú??Ïπ¥Îìú ?Ä?Ä
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1E1E3F), Color(0xFF2A2A5A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(
+                color: Colors.deepPurpleAccent.withOpacity(0.3),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // ?¨Ïù∏???πÏÖò
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.star, color: Colors.amberAccent, size: 28),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${profile.totalPoints}',
+                      style: const TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'pts',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey[400],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // ?§Ïùå ?±Í∏â ÏßÑÌñâ??
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withOpacity(0.05),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            isMaxTier ? '?èÜ ÏµúÍ≥† ?±Í∏â ?¨ÏÑ±!' : '?§Ïùå ?±Í∏âÍπåÏ?',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[400],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (!isMaxTier)
+                            Text(
+                              '${profile.nextTierRemaining}pts ?®Ïùå',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.amberAccent,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: progressValue,
+                          minHeight: 12,
+                          backgroundColor: Colors.grey[800],
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            isMaxTier
+                                ? Colors.amberAccent
+                                : Colors.deepPurpleAccent,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${(progressValue * 100).toInt()}%',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\tabs\appearance_tab.dart
+import 'package:flutter/material.dart';
+
+class AppearanceTab extends StatelessWidget {
+  const AppearanceTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.face, size: 64, color: Colors.deepPurple),
+          SizedBox(height: 16),
+          Text(
+            '?∏Î™®',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text(
+            '?∏Î™® Í¥ÄÎ¶??ÅÏùÑ ?ïÏù∏?òÏÑ∏??,
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\tabs\coordi_tab.dart
+import 'package:flutter/material.dart';
+
+class CoordiTab extends StatelessWidget {
+  const CoordiTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.checkroom, size: 64, color: Colors.deepPurple),
+          SizedBox(height: 16),
+          Text(
+            'ÏΩîÎîî',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text(
+            '?òÎßå??ÏΩîÎîîÎ•?ÎßåÎì§?¥Î≥¥?∏Ïöî',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\tabs\makeup_tab.dart
+import 'package:flutter/material.dart';
+
+class MakeupTab extends StatelessWidget {
+  const MakeupTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.brush, size: 64, color: Colors.deepPurple),
+          SizedBox(height: 16),
+          Text(
+            '?îÏû•',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text(
+            '?îÏû•Î≤ïÏùÑ Î∞∞ÏõåÎ≥¥ÏÑ∏??,
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\screens\widgets\healing_banner_card.dart
+import 'dart:math';
+import 'package:flutter/material.dart';
+
+/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+/// HealingBannerCard
+/// Í∞êÏÑ±?ÅÏù∏ ?åÎ°ú??Ïπ¥Îìú Î∞∞ÎÑà ?ÑÏ†Ø
+/// Î∂Ä?úÎü¨??Í∑∏Îùº?îÏñ∏??+ ÎØ∏ÏÑ∏ ?åÎ°ú??+ ?∞Ïπò Î∞îÏö¥??/// ?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä?Ä
+class HealingBannerCard extends StatefulWidget {
+  final String title;
+  final String emoji;
+  final String tagline;
+  final IconData icon;
+  final List<Color> gradientColors;
+  final VoidCallback onTap;
+  final int animationIndex;
+
+  const HealingBannerCard({
+    super.key,
+    required this.title,
+    required this.emoji,
+    required this.tagline,
+    required this.icon,
+    required this.gradientColors,
+    required this.onTap,
+    this.animationIndex = 0,
+  });
+
+  @override
+  State<HealingBannerCard> createState() => _HealingBannerCardState();
+}
+
+class _HealingBannerCardState extends State<HealingBannerCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _floatController;
+  double _scale = 1.0;
+
+  @override
+  void initState() {
+    super.initState();
+    final duration = 2500 + (widget.animationIndex * 400);
+    _floatController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: duration),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _floatController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _floatController,
+      builder: (context, child) {
+        final floatOffset =
+            sin((_floatController.value * 2 * pi) +
+                    (widget.animationIndex * 0.8)) *
+                4.0;
+        return Transform.translate(
+          offset: Offset(0, floatOffset),
+          child: child,
+        );
+      },
+      child: _buildCard(),
+    );
+  }
+
+  Widget _buildCard() {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _scale = 0.97),
+      onTapUp: (_) {
+        setState(() => _scale = 1.0);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _scale = 1.0),
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutBack,
+        child: Container(
+          height: 160,
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              colors: [
+                widget.gradientColors[0],
+                widget.gradientColors[1],
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: widget.gradientColors[1].withValues(alpha: 0.25),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Stack(
+              children: [
+                // ?§ÌÅ¨ ?§Î≤Ñ?àÏù¥
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.black.withValues(alpha: 0.05),
+                          Colors.black.withValues(alpha: 0.3),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                ),
+                // Î∞∞Í≤Ω ?•Ïãù ?ÑÏù¥ÏΩ?                Positioned(
+                  right: -15,
+                  bottom: -15,
+                  child: Icon(
+                    widget.icon,
+                    size: 120,
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
+                ),
+                // Ïª®ÌÖêÏ∏?                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              children: [
+                                Text(widget.emoji,
+                                    style: const TextStyle(fontSize: 28)),
+                                const SizedBox(width: 10),
+                                Flexible(
+                                  child: Text(
+                                    widget.title,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      letterSpacing: -0.3,
+                                      shadows: [
+                                        Shadow(
+                                            color: Colors.black26,
+                                            blurRadius: 4),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              widget.tagline,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.white.withValues(alpha: 0.9),
+                                height: 1.5,
+                                shadows: const [
+                                  Shadow(
+                                      color: Colors.black12, blurRadius: 3),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_forward_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\services\auth_service.dart
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Supabase ?∏Ï¶ù ?úÎπÑ??
+class AuthService {
+  final SupabaseClient _client = Supabase.instance.client;
+
+  /// ?ÑÏû¨ Î°úÍ∑∏?∏Îêú ?¨Ïö©??
+  User? get currentUser => _client.auth.currentUser;
+
+  /// ?∏Ï¶ù ?ÅÌÉú Î≥ÄÍ≤??§Ìä∏Î¶?
+  Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
+
+  /// ?¥Î©î???®Ïä§?åÎìú ?åÏõêÍ∞Ä??
+  Future<AuthResponse> signUp({
+    required String email,
+    required String password,
+  }) async {
+    return await _client.auth.signUp(
+      email: email,
+      password: password,
+    );
+  }
+
+  /// ?¥Î©î???®Ïä§?åÎìú Î°úÍ∑∏??
+  Future<AuthResponse> signIn({
+    required String email,
+    required String password,
+  }) async {
+    return await _client.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
+  }
+
+  /// Î°úÍ∑∏?ÑÏõÉ
+  Future<void> signOut() async {
+    await _client.auth.signOut();
+  }
+}
+
+// FILE: C:\Users\myung\git\solo-tutor\lib\services\profile_service.dart
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// ?åÏä§?∏Ïö© ?¨Ïö©??ID Î™©Î°ù (F~GOD ?±Í∏âÎ≥?
+const List<String> testUserIds = [
+  '00000000-0000-0000-0000-000000000000', // F?±Í∏â
+  '11111111-1111-1111-1111-111111111111', // E?±Í∏â
+  '22222222-2222-2222-2222-222222222222', // D?±Í∏â
+  '33333333-3333-3333-3333-333333333333', // C?±Í∏â
+  '44444444-4444-4444-4444-444444444444', // B?±Í∏â
+  '55555555-5555-5555-5555-555555555555', // A?±Í∏â
+  '66666666-6666-6666-6666-666666666666', // GOD?±Í∏â
+];
+const String testUserId = '00000000-0000-0000-0000-000000000000';
+
+/// Î¶¨ÎçîÎ≥¥Îìú ?∞Ïù¥??Î™®Îç∏
+class LeaderboardProfile {
+  final String id;
+  final String nickname;
+  final int totalPoints;
+  final String tierDisplay;
+  final int? nextTierRemaining;
+
+  LeaderboardProfile({
+    required this.id,
+    required this.nickname,
+    required this.totalPoints,
+    required this.tierDisplay,
+    this.nextTierRemaining,
+  });
+
+  factory LeaderboardProfile.fromMap(Map<String, dynamic> map) {
+    return LeaderboardProfile(
+      id: map['id'] as String,
+      nickname: map['nickname'] as String,
+      totalPoints: (map['total_points'] as num).toInt(),
+      tierDisplay: map['tier_display'] as String? ?? '',
+      nextTierRemaining: map['next_tier_remaining'] != null
+          ? (map['next_tier_remaining'] as num).toInt()
+          : null,
+    );
+  }
+}
+
+/// ?ÑÎ°ú??Î¶¨ÎçîÎ≥¥Îìú ?úÎπÑ??
+class ProfileService {
+  final SupabaseClient _client = Supabase.instance.client;
+
+  /// leaderboards Î∑∞Ïóê???πÏ†ï ?¨Ïö©???ïÎ≥¥Î•?Í∞Ä?∏Ïò¥
+  Future<LeaderboardProfile?> getMyProfile({String? userId}) async {
+    final uid = userId ?? testUserId;
+
+    final response = await _client
+        .from('leaderboards')
+        .select()
+        .eq('id', uid)
+        .maybeSingle();
+
+    if (response == null) return null;
+    return LeaderboardProfile.fromMap(response);
+  }
+
+  /// leaderboards Î∑∞Ïóê???ÑÏ≤¥ ?úÏúÑÎ•?Í∞Ä?∏Ïò¥
+  Future<List<LeaderboardProfile>> getLeaderboard({int limit = 20}) async {
+    final response = await _client
+        .from('leaderboards')
+        .select()
+        .order('total_points', ascending: false)
+        .limit(limit);
+
+    return (response as List)
+        .map((e) => LeaderboardProfile.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+}
